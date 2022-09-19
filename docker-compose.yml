@@ -10,6 +10,8 @@ services:
     build:
       context: orangebox
       dockerfile: ./Dockerfile
+    volumes:
+      - ./data:/data:rw
   test-rocket:
     image: test-rocket
     build:
