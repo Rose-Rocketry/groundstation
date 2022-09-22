@@ -2,11 +2,12 @@ version: '3.4'
 
 services:
   broker:
-    image: eclipse-mosquitto
-    volumes:
-      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
-  groundstation:
-    image: groundstation
+    image: mosquitto
+    build:
+      context: mosquitto
+      dockerfile: ./Dockerfile
+  orangebox:
+    image: orangebox
     build:
       context: orangebox
       dockerfile: ./Dockerfile
