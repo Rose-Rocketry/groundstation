@@ -13,6 +13,15 @@ services:
       dockerfile: ./Dockerfile
     volumes:
       - ./data:/data:rw
+  deejay:
+    image: deejay
+    build:
+      context: deejay
+      dockerfile: ./Dockerfile
+    volumes:
+      - ./data:/data:rw
+    ports:
+      - "8080:8080"
   test-rocket:
     image: test-rocket
     build:
