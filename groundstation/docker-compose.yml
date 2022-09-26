@@ -3,27 +3,39 @@ version: '3.4'
 services:
   broker:
     image: mosquitto
+    restart: always
     build:
       context: mosquitto
       dockerfile: ./Dockerfile
   orangebox:
     image: orangebox
+    restart: always
     build:
       context: orangebox
       dockerfile: ./Dockerfile
     volumes:
-      - ./data:/data:rw
+      - /var/local/groundstation:/data:rw
   deejay:
     image: deejay
+    restart: always
     build:
       context: deejay
       dockerfile: ./Dockerfile
     volumes:
-      - ./data:/data:rw
+      - /var/local/groundstation:/data:rw
     ports:
       - "8080:8080"
-  test-rocket:
-    image: test-rocket
+  # test-rocket:
+  #   image: test-rocket
+  #   restart: always
+  #   build:
+  #     context: test-rocket
+  #     dockerfile: ./Dockerfile
+  gateway:
+    image: gateway
+    # restart: always
     build:
-      context: test-rocket
+      context: gateway
       dockerfile: ./Dockerfile
+    devices:
+      - /dev/ttyUSB0:/dev/ttyUSB0
