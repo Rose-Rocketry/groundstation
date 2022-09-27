@@ -9,10 +9,10 @@
         [user@devmachine]$ DOCKER_HOST="ssh://pi@hostname" docker version
         ```
     4. Install docker-compose to your local machine (docker daemon not needed)
-    5. Create a `/data` directory on the pi
+    5. Create a `/var/local/groundstation` directory on the pi
         ```bash
-        [pi@raspberry]$ sudo mkdir -p /data
-        [pi@raspberry]$ sudo chown pi:pi /data
+        [pi@raspberry]$ sudo mkdir -p /var/local/groundstation
+        [pi@raspberry]$ sudo chown pi:pi /var/local/groundstation
         ```
 3. Running on PC (no XBee needed)
     1. WIP
