@@ -5,6 +5,7 @@ from pathlib import Path
 
 DATA_PATH = Path("/data")
 ROCKET_TOPIC = "rocket/+/+/#"
+LOG_TOPICS = ["$SYS/broker/uptime", "$SYS/broker/messages/received"]
 
 
 # The callback for when the client receives a CONNACK response from the server.
@@ -12,6 +13,8 @@ def on_connect(client: mqtt.Client, userdata, flags, rc, properties):
     print("Connected with result code " + str(rc))
 
     client.subscribe(ROCKET_TOPIC, qos=2)
+    for topic in LOG_TOPICS:
+        client.subscribe(topic, qos=0)
 
 
 # The callback for when a PUBLISH message is received from the server.
@@ -35,11 +38,18 @@ def on_rocket_message(client: mqtt.Client(), userdata, msg: mqtt.MQTTMessage):
     except Exception as e:
         print("Error logging message:", e)
 
+# The callback for when a PUBLISH message is received from the server.
+def log_packet_only(client: mqtt.Client(), userdata, msg: mqtt.MQTTMessage):
+    print(f"{msg.topic} ({len(msg.payload)} bytes) {msg.payload}")
+
 
 client = mqtt.Client(platform.node(), protocol=mqtt.MQTTv5)
 print(f"client_id={platform.node()}")
 client.on_connect = on_connect
 client.message_callback_add(ROCKET_TOPIC, on_rocket_message)
+
+# for topic in LOG_TOPICS:
+#     client.message_callback_add(topic, log_packet_only)
 
 client.connect("broker", clean_start=False)
 
