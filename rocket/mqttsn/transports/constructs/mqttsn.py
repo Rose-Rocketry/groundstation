@@ -1,5 +1,5 @@
 import enum
-from construct import Struct, BitStruct, Flag, BitsInteger, Padding, Enum, Byte, Int16ub, RawCopy, Switch, GreedyBytes, GreedyString, this
+from construct import Struct, BitStruct, Flag, BitsInteger, Padding, Enum, Byte, Int16ub, RawCopy, Switch, GreedyBytes, GreedyString, Const, this
 from .mqttsn_length_varint import MQTTSNLengthPrefixed
 
 
@@ -37,13 +37,18 @@ class MsgType(enum.IntEnum):
         return f"{self._name_:<13}"
 
 
+class ReturnCode(enum.Enum):
+    ACCEPTED = 0x00
+    REJECTED_CONGESTION = 0x01
+    REJECTED_INVALID_TOPIC_ID = 0x02
+    REJECTED_NOT_SUPPORTED = 0x03
+
+
 MQTTSNMessageAdvertise = Struct(
     "gateway_id" / Byte,
     "duration" / Int16ub,
 )
-MQTTSNMessageSearchGW = Struct(
-    "radius" / Byte,
-)
+MQTTSNMessageSearchGW = Struct("radius" / Byte, )
 MQTTSNMessageGWInfo = Struct(
     "gateway_id" / Byte,
     "gateway_address" / GreedyBytes,
@@ -55,8 +60,20 @@ MQTTSNMessageConnect = Struct(
         "will" / Flag,
         Padding(4),
     ),
+    "protocol_id" / Const(0x01, Byte),
     "duration" / Int16ub,
     "client_id" / GreedyString("utf8"),
+)
+MQTTSNMessageConnAck = Struct("return_code" / Byte)
+MQTTSNMessageRegister = Struct(
+    "topic_id" / Int16ub,
+    "message_id" / Int16ub,
+    "topic_name" / GreedyString("utf8"),
+)
+MQTTSNMessageRegAck = Struct(
+    "topic_id" / Int16ub,
+    "message_id" / Int16ub,
+    "return_code" / Byte,
 )
 
 MQTTSNPacket = MQTTSNLengthPrefixed(
@@ -68,7 +85,10 @@ MQTTSNPacket = MQTTSNLengthPrefixed(
                 MsgType.ADVERTISE: MQTTSNMessageAdvertise,
                 MsgType.SEARCHGW: MQTTSNMessageSearchGW,
                 MsgType.GWINFO: MQTTSNMessageGWInfo,
-                MsgType.CONNACK: MQTTSNMessageConnect,
+                MsgType.CONNECT: MQTTSNMessageConnect,
+                MsgType.CONNACK: MQTTSNMessageConnAck,
+                MsgType.REGISTER: MQTTSNMessageRegister,
+                MsgType.REGACK: MQTTSNMessageRegAck,
             },
             default=GreedyBytes,
         )),

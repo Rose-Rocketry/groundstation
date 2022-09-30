@@ -1,78 +1,67 @@
-from re import I
+from inspect import signature
 import time
-from typing import Any
-from asyncio import Event, create_task, sleep
-from .transports.generic import MQTTSN_Transport
-from .transports.constructs.mqttsn import MQTTSNPacket, MsgType
+from typing import Any, Callable
+from asyncio import Event, Queue, create_task, sleep, wait_for
 
-MAX_MISSED_ADVERTISEMENTS = 5
-GW_SEARCH_TIMEOUT = 10
+
+from .systems.advertisement_system import AdvertisementSystem
+from .systems.connection_system import ConnectionSystem
+from .systems.topic_system import TopicSystem
+from .transports.generic import MQTTSN_Transport
+from .transports.constructs.mqttsn import MQTTSNPacket, MsgType, ReturnCode
+
 # GWInfo has no TTL, default to 60
-GW_INFO_TTL = 60
 
 
 class MQTTSNClient:
     transport: MQTTSN_Transport
-    advertisement_event: Event
-    advertised_address: str
-    advertisement_expires: int
+
+    topic_registry_queue: "Queue[str]"
+    topic_registry_packet_queue: "Queue[(MsgType, Any)]"
+
+    _callbacks: "dict[MsgType, list[Callable[[MsgType, Any], Any]]]"
+
+    advertisement_system: AdvertisementSystem
+    connection_system: ConnectionSystem
+    topic_system: TopicSystem
 
     def __init__(self, transport: MQTTSN_Transport) -> None:
         self.transport = transport
-        self.advertised_address = None
-        self.advertisement_event = Event()
-        self.advertisement_expires = 0
+
+        self._callbacks = dict()
+
+        self.advertisement_system = AdvertisementSystem(self)
+        self.connection_system = ConnectionSystem(self)
+        self.topic_system = TopicSystem(self)
 
         transport.set_receive_callback(self.on_receive)
 
-        create_task(self.search_coroutine())
+        for i in range(40):
+            create_task(self.topic_system.get_topic_id(f"topic/test_topic/{i}"))
 
-    async def search_coroutine(self):
-        await sleep(1)
+    def register_callback(self, message_type: MsgType,
+                          callback: "Callable[[MsgType, Any], Any]"):
+        if message_type not in self._callbacks:
+            self._callbacks[message_type] = []
 
-        while True:
-            now = time.monotonic()
-            if not self.advertisement_event.is_set():
-                await self.broadcast_packet(MsgType.SEARCHGW, {"radius": 0})
-                await sleep(GW_SEARCH_TIMEOUT)
-                continue
-            
-            if now < self.advertisement_expires:
-                await sleep(self.advertisement_expires - now)
-                continue
-            
-            if self.advertised_address is None or time.monotonic() > self.advertisement_expires:
-                self.advertisement_event.clear()
-                print("Cleared expired advertisement")
+        self._callbacks[message_type].append(callback)
 
-
-    async def test_coroutine(self):
-        await self.wait_for_advertisement()
-        print("Got Advertisement!")
-
-    async def wait_for_advertisement(self):
-        if self.advertisement_event.is_set():
-            if self.advertised_address is None or time.monotonic(
-            ) > self.advertisement_expires:
-                self.advertisement_event.clear()
-                print("Cleared expired advertisement")
-
-            print("Waiting for advertisement...")
-            await self.advertisement_event.wait()
-
-    async def send_packet(self, message_type: MsgType, message: Any):
-        await self.wait_for_advertisement()
+    async def send_packet(self,
+                          message_type: MsgType,
+                          message: Any,
+                          dont_wait_for_connection=False):
+        await self.advertisement_system.advertisement_event.wait()
+        if not dont_wait_for_connection:
+            await self.connection_system.connection_event.wait()
 
         packet = MQTTSNPacket.build({
             "message_type": message_type,
             "message": message,
         })
-        await self.transport.send_packet(packet, self.advertised_address)
+        await self.transport.send_packet(packet, self.advertisement_system.advertised_address)
         print(f"==> {message_type} ({len(packet)}b)")
 
     async def broadcast_packet(self, message_type: MsgType, message: Any):
-        await self.wait_for_advertisement()
-
         packet = MQTTSNPacket.build({
             "message_type": message_type,
             "message": message,
@@ -91,40 +80,13 @@ class MQTTSNClient:
 
         print(f"<== {message_type} ({len(raw)}b) | ", end="")
 
-        if message_type == MsgType.ADVERTISE or MsgType.GWINFO:
-            duration = 0
-
-            if message_type == MsgType.ADVERTISE:
-                duration = message.duration
-                print(f"address={address} ttl={duration} | ", end="")
-            else:
-                duration = GW_INFO_TTL
-                print(f"address={address} | ", end="")
-
-            if self.advertised_address == address:
-                print(
-                    f"REFRESHED with {self.advertisement_expires - now:.02f}s left"
-                )
-                self.advertised_address = address
-                self.advertisement_expires = now + duration * MAX_MISSED_ADVERTISEMENTS
-                self.advertisement_event.set()
-            elif self.advertised_address is None or now > self.advertisement_expires:
-                print(f"NEW advertisement")
-                self.advertised_address = address
-                self.advertisement_expires = now + duration * MAX_MISSED_ADVERTISEMENTS
-                self.advertisement_event.set()
-            else:
-                print("IGNORED")
-
-            return
-
-        if self.advertised_address is None:
-            print("IGNORED, no advertisement received")
-
-        if now > self.advertisement_expires:
-            print("IGNORED, advertisement is expired")
-
-        if MsgType == 1234:
-            pass
+        if message_type in self._callbacks:
+            callbacks = self._callbacks[message_type]
+            for callback in callbacks:
+                if len(signature(callback).parameters) == 2:
+                    callback(message_type, message)
+                else:
+                    # Used for advertisements
+                    callback(message_type, message, address)
         else:
-            print("IGNORED")
+            print(" (IGNORED)")

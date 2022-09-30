@@ -9,3 +9,4 @@ services:
       dockerfile: ./Dockerfile
     devices:
       - /dev/ttyUSB1:/dev/ttyUSB0
+    stop_signal: SIGINT

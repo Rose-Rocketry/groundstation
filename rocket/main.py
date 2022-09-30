@@ -9,6 +9,7 @@
 # loop.close()
 
 import asyncio
+import os
 import serial_asyncio
 from mqttsn.transports import XBEE_MQTTSN_Transport
 from mqttsn.client import MQTTSNClient
@@ -16,12 +17,18 @@ from mqttsn.client import MQTTSNClient
 loop = asyncio.get_event_loop()
 
 async def main():
-    _, transport = await serial_asyncio.create_serial_connection(
-        loop,
-        XBEE_MQTTSN_Transport,
-        "/dev/ttyUSB0",
-        baudrate=115200,
-    )
+    if "SENSORNET" in os.environ and os.environ["SENSORNET"] == "UDP":
+        print("Using udp transport")
+        raise NotImplementedError()
+        # loop.create_datagram_endpoint(UDP_MQTTSN_Transport, None, ("broker", ))
+    else:
+        print("Using XBee Transport")
+        _, transport = await serial_asyncio.create_serial_connection(
+            loop,
+            XBEE_MQTTSN_Transport,
+            "/dev/ttyUSB0",
+            baudrate=115200,
+        )
 
     client = MQTTSNClient(transport)
     print(client)
