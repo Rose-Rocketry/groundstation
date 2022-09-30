@@ -1,18 +1,22 @@
-from typing import Callable
-
-from rocket.mqttsn.transports.constructs.xbee import APIDataReceivePacket, APIFrame
+from typing import Any, Callable
 
 
 class MQTTSN_Transport:
-    receive_callback: Callable[[APIFrame, APIDataReceivePacket], None] = lambda _1,_2: None
-    
+    receive_callback: Callable[[bytes, str], None]
+
+    def __init__(self) -> None:
+        self.set_receive_callback(lambda _packet, _address: None)
+
     @property
     def max_packet_size(self):
         raise NotImplementedError()
 
-    def set_receive_callback(self, receive_callback: Callable[[APIFrame, APIDataReceivePacket], None]):
+    def set_receive_callback(self, receive_callback: Callable[[bytes, str],
+                                                              None]):
         self.receive_callback = receive_callback
 
-    def send_packet(self, packet: bytes):
+    async def send_packet(self, packet: bytes, address: str):
         raise NotImplementedError()
 
+    async def broadcast_packet(self, packet: bytes):
+        raise NotImplementedError()

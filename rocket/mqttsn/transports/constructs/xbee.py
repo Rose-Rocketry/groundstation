@@ -44,23 +44,25 @@ APIFrame = Struct(
         RawCopy(
             Struct(
                 "frame_type" / Byte,
-                "frame_data" / RawCopy(Switch(
-                    this.frame_type,
-                    {
-                        0x10: APIDataTransmitRequest,
-                        0x8A: APIDataModemStatus,
-                        0x90: APIDataReceivePacket,
-                    },
-                    default=GreedyBytes,
-                ),
-            )))),
+                "frame_data" / RawCopy(
+                    Switch(
+                        this.frame_type,
+                        {
+                            0x10: APIDataTransmitRequest,
+                            0x8A: APIDataModemStatus,
+                            0x90: APIDataReceivePacket,
+                        },
+                        default=GreedyBytes,
+                    )),
+            ))),
     "checksum" / Checksum(Byte, calc_checksum, this.content),
 )
 
-print(APIFrame.parse(bytes.fromhex("7e00022311cb")))
-print(APIFrame.parse(bytes.fromhex("7e00028a0075")))
+if __name__ == "__main__":
+    print(APIFrame.parse(bytes.fromhex("7e00022311cb")))
+    print(APIFrame.parse(bytes.fromhex("7e00028a0075")))
 
-# Checksum example from the docs
-assert APIFrame.build({"content": {
-    "data": b"\x23\x11"
-}}) == bytes.fromhex("7e00022311cb")
+    # Checksum example from the docs
+    assert APIFrame.build({"content": {
+        "data": b"\x23\x11"
+    }}) == bytes.fromhex("7e00022311cb")
