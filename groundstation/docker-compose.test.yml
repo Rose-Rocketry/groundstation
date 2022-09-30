@@ -28,11 +28,12 @@ services:
       - "8080:8080"
     stop_signal: SIGINT
   gateway:
-    image: gateway
+    image: gateway-udp
     restart: always
     build:
       context: gateway
       dockerfile: ./Dockerfile
-    devices:
-      - /dev/ttyUSB0:/dev/ttyUSB0
+      args:
+        SENSORNET: udp
+    network_mode: host
     stop_signal: SIGINT
