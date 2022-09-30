@@ -1,0 +1,11 @@
+version: '3.4'
+
+services:
+  test-rocket:
+    image: rocket
+    # restart: always
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    devices:
+      - /dev/ttyUSB1:/dev/ttyUSB0
