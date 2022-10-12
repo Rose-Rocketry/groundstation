@@ -1,5 +1,7 @@
 *
 !mqttsn
+!sensors
 !main.py
 !requirements.txt
 **/__pycache__
+**/*.pyc

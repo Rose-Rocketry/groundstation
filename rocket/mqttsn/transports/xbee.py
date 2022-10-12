@@ -1,10 +1,27 @@
+import os
 from random import random
 import traceback
 import asyncio
-from functools import partial
+import serial_asyncio
 from construct import Int16ub
 from .generic import MQTTSN_Transport
 from .constructs.xbee import APIDataTransmitRequest, APIFrame
+
+async def create_xbee_transport_pi_zero() -> "XBEE_MQTTSN_Transport":
+    # Enable CTS and RTS alt modes on GPIO16 and GPIO17, respectively
+    os.system("raspi-gpio set 16 a3")
+    os.system("raspi-gpio set 17 a3")
+    os.system("raspi-gpio get 14-17")
+
+    _, transport = await serial_asyncio.create_serial_connection(
+        asyncio.get_running_loop(),
+        XBEE_MQTTSN_Transport,
+        "/dev/ttyAMA0",
+        baudrate=115200,
+        rtscts=True,
+    )
+
+    return transport
 
 
 class XBEE_MQTTSN_Transport(MQTTSN_Transport, asyncio.Protocol):

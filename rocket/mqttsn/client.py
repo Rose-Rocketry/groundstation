@@ -3,10 +3,11 @@ import time
 from typing import Any, Callable
 from asyncio import Event, Queue, create_task, sleep, wait_for
 
-
 from .systems.advertisement_system import AdvertisementSystem
 from .systems.connection_system import ConnectionSystem
 from .systems.topic_system import TopicSystem
+from .systems.publish_system import PublishSystem
+from .systems.sensor_systen import SensorSystem
 from .transports.generic import MQTTSN_Transport
 from .transports.constructs.mqttsn import MQTTSNPacket, MsgType, ReturnCode
 
@@ -24,6 +25,8 @@ class MQTTSNClient:
     advertisement_system: AdvertisementSystem
     connection_system: ConnectionSystem
     topic_system: TopicSystem
+    publish_system: PublishSystem
+    sensor_system: SensorSystem
 
     def __init__(self, transport: MQTTSN_Transport) -> None:
         self.transport = transport
@@ -33,11 +36,10 @@ class MQTTSNClient:
         self.advertisement_system = AdvertisementSystem(self)
         self.connection_system = ConnectionSystem(self)
         self.topic_system = TopicSystem(self)
+        self.publish_system = PublishSystem(self)
+        self.sensor_system = SensorSystem(self)
 
         transport.set_receive_callback(self.on_receive)
-
-        for i in range(40):
-            create_task(self.topic_system.get_topic_id(f"topic/test_topic/{i}"))
 
     def register_callback(self, message_type: MsgType,
                           callback: "Callable[[MsgType, Any], Any]"):

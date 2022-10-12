@@ -14,7 +14,7 @@ services:
       context: orangebox
       dockerfile: ./Dockerfile
     volumes:
-      - /var/local/groundstation:/data:rw
+      - ./data:/data:rw
     stop_signal: SIGINT
   deejay:
     image: deejay
@@ -23,7 +23,7 @@ services:
       context: deejay
       dockerfile: ./Dockerfile
     volumes:
-      - /var/local/groundstation:/data:rw
+      - ./data:/data:rw
     ports:
       - "8080:8080"
     stop_signal: SIGINT
@@ -35,5 +35,6 @@ services:
       dockerfile: ./Dockerfile
       args:
         SENSORNET: udp
-    network_mode: host
+    ports:
+      - "10000:10000/udp"
     stop_signal: SIGINT

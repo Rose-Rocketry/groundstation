@@ -1,4 +1,4 @@
-from asyncio import Event, Queue, create_task, sleep, wait_for
+from asyncio import Event, Queue, Task, create_task, sleep, wait_for
 import random
 import time
 
@@ -17,32 +17,37 @@ CONNECT_TIMEOUT = 10
 class ConnectionSystem(System):
     connection_event: Event
     _connection_packet_queue: "Queue[(MsgType, Any)]"
+    _connect_task: Task
 
     def __init__(self, client: "MQTTSNClient") -> None:
         super().__init__(client)
 
-        client.register_callback(MsgType.CONNACK, self.handle_packet)
+        client.register_callback(MsgType.CONNACK, self.handle_connack_packet)
+        client.register_callback(MsgType.DISCONNECT, self.handle_disconnect_packet)
 
         self.connection_event = Event()
         self._connection_packet_queue = Queue()
 
-        create_task(self._connect_coroutine())
+        self._connect_task = create_task(self._connect_coroutine())
 
     async def _connect_coroutine(self):
         while True:
-            await self.client.send_packet(MsgType.CONNECT, {
-                "flags": {
-                    "clean_session": True,
-                    "will": False
+            await self.client.send_packet(
+                MsgType.CONNECT,
+                {
+                    "flags": {
+                        "clean_session": True,
+                        "will": False
+                    },
+                    "duration": KEEPALIVE_DURATION,
+                    "client_id": CLIENT_ID,
                 },
-                "duration": KEEPALIVE_DURATION,
-                "client_id": CLIENT_ID,
-            },
-                                          dont_wait_for_connection=True)
+                dont_wait_for_connection=True,
+            )
 
             try:
                 _, message = await wait_for(
-                self._connection_packet_queue.get(), CONNECT_TIMEOUT)
+                    self._connection_packet_queue.get(), CONNECT_TIMEOUT)
             except:
                 continue
 
@@ -58,8 +63,10 @@ class ConnectionSystem(System):
 
         print("Connected Successfully")
         self.connection_event.set()
-        # TODO: Handle Disconnects
 
-    def handle_packet(self, message_type: MsgType, message: Any):
+    def handle_connack_packet(self, message_type: MsgType, message: Any):
         self._connection_packet_queue.put_nowait((message_type, message))
         print("QUEUED")
+
+    def handle_disconnect_packet(self, message_type: MsgType, message: Any):
+        print(f"duration={message.duration}")

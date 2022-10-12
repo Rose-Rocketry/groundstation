@@ -21,7 +21,7 @@ def on_connect(client: mqtt.Client, userdata, flags, rc, properties):
 def on_rocket_message(client: mqtt.Client(), userdata, msg: mqtt.MQTTMessage):
     print(f"{msg.topic} ({len(msg.payload)} bytes) {msg.payload}")
     try:
-        text = msg.topic + ":" + msg.payload.decode()
+        text = msg.topic + ":" + msg.payload.hex()
         if "\n" in text:
             raise ValueError(
                 f"WARNING: newline contained in message, not logging to file: {msg.payload}"

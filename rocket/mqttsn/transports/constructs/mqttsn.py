@@ -1,5 +1,5 @@
 import enum
-from construct import Struct, BitStruct, Flag, BitsInteger, Padding, Enum, Byte, Int16ub, RawCopy, Switch, GreedyBytes, GreedyString, Const, this
+from construct import Struct, BitStruct, Flag, BitsInteger, Padding, Enum, Byte, Int16ub, RawCopy, Switch, GreedyBytes, GreedyString, Const, this, Optional, BitsSwapped
 from .mqttsn_length_varint import MQTTSNLengthPrefixed
 
 
@@ -37,11 +37,17 @@ class MsgType(enum.IntEnum):
         return f"{self._name_:<13}"
 
 
-class ReturnCode(enum.Enum):
+class ReturnCode(enum.IntEnum):
     ACCEPTED = 0x00
     REJECTED_CONGESTION = 0x01
     REJECTED_INVALID_TOPIC_ID = 0x02
     REJECTED_NOT_SUPPORTED = 0x03
+
+
+class TopicIdType(enum.IntEnum):
+    ID = 0b00
+    PRE_DEFINED = 0b01
+    SHORT_TOPIC = 0b10
 
 
 MQTTSNMessageAdvertise = Struct(
@@ -55,10 +61,10 @@ MQTTSNMessageGWInfo = Struct(
 )
 MQTTSNMessageConnect = Struct(
     "flags" / BitStruct(
-        Padding(2),
-        "clean_session" / Flag,
-        "will" / Flag,
         Padding(4),
+        "will" / Flag,
+        "clean_session" / Flag,
+        Padding(2),
     ),
     "protocol_id" / Const(0x01, Byte),
     "duration" / Int16ub,
@@ -75,6 +81,19 @@ MQTTSNMessageRegAck = Struct(
     "message_id" / Int16ub,
     "return_code" / Byte,
 )
+MQTTSNMessagePublish = (Struct(
+    "flags" / BitStruct(
+        "dup" / Flag,
+        "qos" / BitsInteger(2),
+        "retain" / Flag,
+        Padding(2),
+        "topic_id_type" / BitsInteger(2),
+    ),
+    "topic_id" / Int16ub,
+    "message_id" / Int16ub,
+    "data" / GreedyBytes,
+))
+MQTTSNMessageDisconnect = Struct("duration" / Optional(Int16ub))
 
 MQTTSNPacket = MQTTSNLengthPrefixed(
     Struct(
@@ -89,6 +108,8 @@ MQTTSNPacket = MQTTSNLengthPrefixed(
                 MsgType.CONNACK: MQTTSNMessageConnAck,
                 MsgType.REGISTER: MQTTSNMessageRegister,
                 MsgType.REGACK: MQTTSNMessageRegAck,
+                MsgType.PUBLISH: MQTTSNMessagePublish,
+                MsgType.DISCONNECT: MQTTSNMessageDisconnect,
             },
             default=GreedyBytes,
         )),
